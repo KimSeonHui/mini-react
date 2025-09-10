@@ -11,16 +11,7 @@ export const jsxDEV = (type, props, key) => {
     ref: props?.ref ?? null,
     props: {
       ...props,
-      children:
-        typeof props.children === 'string'
-          ? props.children
-          : props.children.map((child) => {
-              if (typeof child === 'string') {
-                return child;
-              } else {
-                return jsxDEV(child.type, child.props);
-              }
-            }),
+      children: props.children,
     },
   };
 };
