@@ -1,5 +1,21 @@
-import { jsx, jsxs } from "./jsx-runtime";
-import { jsxDEV } from "./jsx-dev-runtime";
-import { createElement } from "./client";
+export const createElement = (type, props, ...children) => {
+  if (typeof type === 'function') {
+    return type(props);
+  }
 
-export const react = { jsx, jsxs, jsxDEV, createElement };
+  return {
+    type,
+    key: props.key ?? null,
+    ref: props.ref ?? null,
+    props: {
+      ...props,
+      children: children.map((child) => {
+        if (typeof child === 'string') {
+          return child;
+        } else {
+          return createElement(child.type, child.props, ...child.props.children);
+        }
+      }),
+    },
+  };
+};
