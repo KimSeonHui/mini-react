@@ -22,6 +22,13 @@ const createRoot = (domNode) => {
           return;
         }
 
+        if (name === 'style') {
+          Object.entries(value).forEach(([styleName, styleValue]) => {
+            dom.style[styleName] = styleValue;
+          });
+          return;
+        }
+
         if (name in dom) {
           dom[name] = value;
         } else {
@@ -31,8 +38,9 @@ const createRoot = (domNode) => {
 
     const { children } = element.props;
     if (!children) {
-      // no-op
-    } else if (typeof children === 'string' || typeof children === 'number') {
+      return;
+    }
+    if (typeof children === 'string' || typeof children === 'number') {
       const textNode = document.createTextNode(element.props.children);
       dom.appendChild(textNode);
     } else if (Array.isArray(children)) {

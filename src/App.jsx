@@ -2,7 +2,9 @@ const Counter = () => {
   let count = 0;
   return (
     <button
+      id="counter"
       type="button"
+      style={{ color: 'white', backgroundColor: 'black' }}
       onClick={() => {
         alert(++count);
       }}
