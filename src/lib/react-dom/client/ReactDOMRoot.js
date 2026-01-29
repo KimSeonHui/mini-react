@@ -1,24 +1,17 @@
-import { createFiberTree, createHostRootFiber } from '../../react-reconciler/ReactFiber';
-import { commitDOM } from '../../react-reconciler/ReactFiberCommitWork';
+import { updateContainer } from '../../react-reconciler/ReactFiber';
 
 const createRoot = (domNode) => {
   const _root = domNode;
 
-  const updateContainer = function (element, hostRootFiber) {
-    if (!element) return;
-
-    const fiber = createFiberTree(element, hostRootFiber);
-    fiber.return = hostRootFiber;
-
-    commitDOM(fiber);
-  };
-
   return {
     render: function (children) {
-      const root = _root;
+      if(_root === null) {
+        throw new Error('마운트되지 않은 root에 업데이트 할 수 없습니다.')
+      }
 
-      const hostRootFiber = createHostRootFiber(root);
-      updateContainer(children, hostRootFiber);
+      const root = _root;
+      updateContainer(children, root);
+
     },
   };
 };

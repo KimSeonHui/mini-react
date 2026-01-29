@@ -1,4 +1,6 @@
-export const createHostRootFiber = (rootDOM) => {
+import { commitDOM } from "./ReactFiberCommitWork";
+
+const createHostRootFiber = (element, rootDOM) => {
   return {
     key: null,
     type: 'HostRoot',
@@ -7,10 +9,11 @@ export const createHostRootFiber = (rootDOM) => {
     sibling: null,
     index: 0,
     stateNode: rootDOM,
+    pendingProps : {children : element}
   };
 };
 
-export const createDom = (element) => {
+const createDom = (element) => {
   if (!element) return;
 
   if (typeof element === 'string' || typeof element === 'number') {
@@ -52,7 +55,7 @@ export const createDom = (element) => {
   return dom;
 };
 
-export const createFiberNode = (element) => {
+const createFiberNode = (element) => {
   if (!element) return null;
 
   if (typeof element === 'string' || typeof element === 'number') {
@@ -64,6 +67,7 @@ export const createFiberNode = (element) => {
       sibling: null,
       index: 0,
       stateNode: createDom(element),
+      pendingProps : element.props
     };
   }
 
@@ -76,6 +80,7 @@ export const createFiberNode = (element) => {
       sibling: null,
       index: 0,
       stateNode: null,
+      pendingProps : element.props
     };
   }
 
@@ -87,51 +92,89 @@ export const createFiberNode = (element) => {
     sibling: null,
     index: 0,
     stateNode: createDom(element),
+    pendingProps : element.props
   };
 };
 
-export const createFiberTree = (element, fiber) => {
-  if (!element) return null;
+let workInProgress = null;
 
-  const newFiber = createFiberNode(element);
-  newFiber.return = fiber;
 
-  const children = element?.props?.children;
+/**
+ * Fiber 트리의 작업 단위(Unit of Work)를 수행하는 함수
+ * 
+ * 역할:
+ * 1. 현재 Fiber의 자식들을 Fiber 노드로 변환하여 연결
+ * 2. 다음에 처리할 Fiber를 반환 (트리 순회)
+ * 
+ * TODO: 재조정(Reconciliation) 작업 추가
+ *       - 기존 Fiber와 새 Element 비교 (Diffing)
+ *       - 변경된 부분만 effect로 표시
+ */
+const performUnitOfWork = (unitOfWork) => {
+  const children = unitOfWork.pendingProps?.children;
+  
+  if(children) {
+    const childArray = Array.isArray(children) ? children : [children];
+    let index = 0;
+    let prevSibling = null;
 
-  if (!children) {
-    return newFiber;
-  }
-
-  if (typeof children === 'string' || typeof children === 'number') {
-    const childFiber = createFiberNode(children);
-    childFiber.return = newFiber;
-    newFiber.child = childFiber;
-    return newFiber;
-  }
-
-  if (children && !Array.isArray(children)) {
-    const childFiber = createFiberTree(children, newFiber);
-    childFiber.return = newFiber;
-    newFiber.child = childFiber;
-    return newFiber;
-  }
-
-  let index = 0;
-  let prevSibling = null;
-
-  while (index < children.length) {
-    const child = children[index];
-    const childFiber = createFiberTree(child, newFiber);
-
-    if (index === 0) {
-      newFiber.child = childFiber;
-    } else {
-      prevSibling.sibling = childFiber;
+    while(children && index < childArray.length) {
+      const childFiber = createFiberNode(childArray[index]);
+      childFiber.return = unitOfWork;
+    
+      if (index === 0) {
+        unitOfWork.child = childFiber;
+      } else {
+        prevSibling.sibling = childFiber;
+      }
+    
+      prevSibling = childFiber;
+      index++;
     }
-
-    prevSibling = childFiber;
-    index++;
   }
 
-  return newFiber;
+  if(unitOfWork.child) {
+    return unitOfWork.child;
+  }
+
+  let next = unitOfWork;
+  while(next) {
+    if(next.sibling) {
+      return next.sibling;
+    }
+    next = next.return;
+  }
+
+  return null;
 };
+
+
+/**
+ * Fiber 트리 전체를 순회하며 작업을 수행하는 루프
+ * 
+ * 역할:
+ * 1. workInProgress가 null이 될 때까지 반복
+ * 2. 각 반복마다 performUnitOfWork를 호출하여 하나의 Fiber 처리
+ * 
+ * TODO: 현재는 동기 모드 (Sync Mode) - 한번 시작하면 끝까지 실행
+ *       동시성 모드 (Concurrent Mode)로 전환 시:
+ *       - shouldYield()로 "멈춰야 하나?" 체크 추가
+ *       - 멈췄다가 재개할 수 있는 스케줄링 로직 필요
+ */
+const workLoop = () => {
+  while (workInProgress !== null) {
+    workInProgress = performUnitOfWork(workInProgress);
+  }
+};
+
+export const updateContainer = (children, root) => {
+  if (!children) return;
+
+  const hostRootFiber = createHostRootFiber(children, root);
+  workInProgress = hostRootFiber;
+
+  console.log(hostRootFiber)
+
+  workLoop(); // render phase
+  commitDOM(hostRootFiber.child); // commit phase
+}
